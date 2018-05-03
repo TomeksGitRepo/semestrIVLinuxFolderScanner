@@ -1,32 +1,47 @@
 #include <sys/types.h>
 #include <sys/stat.h>
+#include <unistd.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <fcntl.h>
 #include <errno.h>
-#include <unistd.h>
 #include <syslog.h>
 #include <string.h>
 #include <fstream>
+//Directory infos
+#include <dirent.h>
+#include <pwd.h>
+#include <grp.h>
+#include <time.h>
+#include <locale.h>
+#include <langinfo.h>
+#include <stdint.h>
 
 int main(int argc, char ** argv) {
   ///////////////////////////Start parsing arguments ////////////////////
   size_t i;
+  const char* sourceFolder;
+  const char* destinationFolder;
+
+  //Geting files infos
+  struct stat sb;
 
   if(argc < 3)
   {
     printf("Incorect usage of program\n");
     printf("Pass source directory and destination directory as arguments to program\n");
     printf("Use -R flag to scan folder recursively\n");
-      return 1;
+      exit(EXIT_FAILURE);
   }
 
   char rFlag[] = "-R";
   for(i = 0; i < argc; i++) {
     char const *option = argv[i];
     if(i == 1) {
+      sourceFolder = option;
       printf("Source folder: %s\n", option);
     } else if(i == 2) {
+      destinationFolder = option;
       printf("Destination folder: %s\n", option);
     } else if( i == 3) {
 
@@ -35,6 +50,15 @@ int main(int argc, char ** argv) {
       }
 
     }
+  }
+
+//Check if folders exits
+  if(-1 == stat(sourceFolder, &sb)) {
+    perror("sourceFolder error");
+    exit(EXIT_FAILURE);
+  } else if(-1 == stat(destinationFolder, &sb)) {
+    perror("destinationFolder error");
+    exit(EXIT_FAILURE);
   }
 
   return 0;
