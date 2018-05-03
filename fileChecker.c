@@ -53,11 +53,11 @@ int main(int argc, char ** argv) {
   }
 
 //Check if folders exits
-  if(-1 == stat(sourceFolder, &sb)) {
-    perror("sourceFolder error");
+  if(-1 == stat(sourceFolder, &sb) || !S_ISDIR(sb.st_mode)) {
+    printf("sourceFolder error path is not existent or pointing to file.\nChange to directory path\n");
     exit(EXIT_FAILURE);
-  } else if(-1 == stat(destinationFolder, &sb)) {
-    perror("destinationFolder error");
+  } else if(-1 == stat(destinationFolder, &sb) || !S_ISDIR(sb.st_mode)) {
+    printf("destinationFolder error path is not existent or pointing to file.\nChange to directory path\n");
     exit(EXIT_FAILURE);
   }
 
