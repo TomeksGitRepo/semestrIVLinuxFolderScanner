@@ -1,5 +1,5 @@
 arglist:
-	g++ -o fileChecker fileChecker.c 
+	g++ -g -Wall -o fileChecker fileChecker.c 
 
 clean:
 	rm -f *.o arglist

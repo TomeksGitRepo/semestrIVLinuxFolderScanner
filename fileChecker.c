@@ -16,6 +16,32 @@
 #include <locale.h>
 #include <langinfo.h>
 #include <stdint.h>
+#include <string.h>
+
+void scandirOneLevel(const char* sourceDir, int depth = 0) {
+  DIR* dirPath;
+  struct dirent* entry;
+  struct stat statbuffer;
+
+  dirPath = opendir(sourceDir); //Already checked in calling function
+  chdir(sourceDir);
+  while((entry = readdir(dirPath)) != NULL) {
+    lstat(entry->d_name, &statbuffer);
+    if(S_ISREG(statbuffer.st_mode)) {
+      // if(strcmp(".", entry->d_name) == 0 || strcmp("..", entry->d_name) == 0)
+      //   continue;
+      printf("Filename: %*s%s\n", depth, "", entry->d_name);
+      //TODO call funciton to copy to destination if file was modified
+      //scandir(entry->d_name, depth+4);
+    }
+    // } else if(S_ISDIR(statbuffer.st_mode)) {
+    //   printf("DirName: %*s%s\n", depth, "", entry->d_name);
+    // }
+    //chdir("..");
+    //closedir(dirPath);
+  }
+}
+
 
 int main(int argc, char ** argv) {
   ///////////////////////////Start parsing arguments ////////////////////
@@ -24,7 +50,9 @@ int main(int argc, char ** argv) {
   const char* destinationFolder;
 
   //Geting files infos
-  struct stat sb;
+  struct stat sFolderBuffer;
+  struct stat dFolderBuffer;
+
 
   if(argc < 3)
   {
@@ -52,14 +80,16 @@ int main(int argc, char ** argv) {
     }
   }
 
-//Check if folders exits
-  if(-1 == stat(sourceFolder, &sb) || !S_ISDIR(sb.st_mode)) {
+//Check if args folders exits
+  if(-1 == stat(sourceFolder, &sFolderBuffer) || !S_ISDIR(sFolderBuffer.st_mode)) {
     printf("sourceFolder error path is not existent or pointing to file.\nChange to directory path\n");
     exit(EXIT_FAILURE);
-  } else if(-1 == stat(destinationFolder, &sb) || !S_ISDIR(sb.st_mode)) {
+  } else if(-1 == stat(destinationFolder, &dFolderBuffer) || !S_ISDIR(dFolderBuffer.st_mode)) {
     printf("destinationFolder error path is not existent or pointing to file.\nChange to directory path\n");
     exit(EXIT_FAILURE);
   }
+
+  scandirOneLevel(sourceFolder);
 
   return 0;
 
