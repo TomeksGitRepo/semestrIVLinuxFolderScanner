@@ -41,6 +41,7 @@ void scandirOneLevel(const char* sourceDir,const char* destinationDir, int depth
       strcpy(sourceFilePath, sourceDir);
       strcat(sourceFilePath, "/");
       strcat(sourceFilePath, entry->d_name);
+
       char destinationFilePath [250];
       strcpy(destinationFilePath, destinationDir);
       strcat(destinationFilePath, "/");
@@ -69,12 +70,11 @@ void checkFile(const char* sourceFilePath, const char* destinationFilePath)
     perror("sourceFilePath error path is not existent or pointing to missing file.\nRestart program\n");
     exit(EXIT_FAILURE);
   }
-  if(-1 == stat(destinationFilePath, &dFileBuffer) ) { //TODO this check is broken not working
-    printf("No file in dest starting coping");
+  if(-1 == stat(destinationFilePath, &dFileBuffer) ) {
+    printf("No file in dest starting coping\n");
     copyFiles(sourceFilePath, destinationFilePath);
   } //TODO add check for modification time and if source > destination copy files
-printf("Coping finshed");
-copyFiles(sourceFilePath, destinationFilePath);
+printf("Coping funciton finshed\n\n");
 }
 
 
