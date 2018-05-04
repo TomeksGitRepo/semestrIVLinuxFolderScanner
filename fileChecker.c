@@ -73,7 +73,10 @@ void checkFile(const char* sourceFilePath, const char* destinationFilePath)
   if(-1 == stat(destinationFilePath, &dFileBuffer) ) {
     printf("No file in dest starting coping\n");
     copyFiles(sourceFilePath, destinationFilePath);
-  } //TODO add check for modification time and if source > destination copy files
+  } else if (sFileBuffer.st_mtime > dFileBuffer.st_mtime) {
+    //Copy file if it was modified
+    copyFiles(sourceFilePath, destinationFilePath);
+  }//TODO add check for modification time and if source > destination copy files
 printf("Coping funciton finshed\n\n");
 }
 
