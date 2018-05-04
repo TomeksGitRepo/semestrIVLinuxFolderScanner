@@ -18,7 +18,14 @@
 #include <stdint.h>
 #include <string.h>
 
-void scandirOneLevel(const char* sourceDir, int depth = 0) {
+#define BUFFERSIZE 1024
+#define COPYMORE 0644
+
+int copyFiles(const char*, const char*);
+void checkFile(const char* sourceFilePath, const char* destinationFilePath);
+
+
+void scandirOneLevel(const char* sourceDir,const char* destinationDir, int depth = 0) {
   DIR* dirPath;
   struct dirent* entry;
   struct stat statbuffer;
@@ -30,7 +37,17 @@ void scandirOneLevel(const char* sourceDir, int depth = 0) {
     if(S_ISREG(statbuffer.st_mode)) {
       // if(strcmp(".", entry->d_name) == 0 || strcmp("..", entry->d_name) == 0)
       //   continue;
-      printf("Filename: %*s%s\n", depth, "", entry->d_name);
+      char sourceFilePath [250];
+      strcpy(sourceFilePath, sourceDir);
+      strcat(sourceFilePath, "/");
+      strcat(sourceFilePath, entry->d_name);
+      char destinationFilePath [250];
+      strcpy(destinationFilePath, destinationDir);
+      strcat(destinationFilePath, "/");
+      strcat(destinationFilePath, entry->d_name);
+
+      printf("Coping Filename: %*s%s\n", depth, "", entry->d_name);
+      checkFile(sourceFilePath, destinationFilePath);
       //TODO call funciton to copy to destination if file was modified
       //scandir(entry->d_name, depth+4);
     }
@@ -41,6 +58,78 @@ void scandirOneLevel(const char* sourceDir, int depth = 0) {
     //closedir(dirPath);
   }
 }
+
+////////////////////////Function to check and copy ///////////////////////
+void checkFile(const char* sourceFilePath, const char* destinationFilePath)
+{
+  struct stat sFileBuffer;
+  struct stat dFileBuffer;
+
+  if(-1 == stat(sourceFilePath, &sFileBuffer)) {
+    perror("sourceFilePath error path is not existent or pointing to missing file.\nRestart program\n");
+    exit(EXIT_FAILURE);
+  }
+  if(-1 == stat(destinationFilePath, &dFileBuffer) ) { //TODO this check is broken not working
+    printf("No file in dest starting coping");
+    copyFiles(sourceFilePath, destinationFilePath);
+  } //TODO add check for modification time and if source > destination copy files
+printf("Coping finshed");
+copyFiles(sourceFilePath, destinationFilePath);
+}
+
+
+///////////////////////End of function to check end copy
+
+
+///////////////////Function to copy files /////////////////////////////
+int copyFiles(const char *source, const char *destination)
+{
+  int in_fd, out_fd, n_chars;
+  char buf[BUFFERSIZE];
+
+
+  /* open files */
+  if( (in_fd=open(source, O_RDONLY)) == -1 )
+  {
+    printf("Cannot open %s", source);
+  }
+
+
+  if( (out_fd=creat(destination, COPYMORE)) == -1 )
+  {
+    printf("Cannot creat %s ", destination);
+  }
+
+
+  /* copy files */
+  while( (n_chars = read(in_fd, buf, BUFFERSIZE)) > 0 )
+  {
+    if( write(out_fd, buf, n_chars) != n_chars )
+    {
+      printf("Write error to %s", destination);
+    }
+
+
+    if( n_chars == -1 )
+    {
+      printf("Read error from %s", source);
+    }
+  }
+
+
+    /* close files */
+    if( close(in_fd) == -1 || close(out_fd) == -1 )
+    {
+      printf("Error closing files");
+    }
+
+
+    return 1;
+}
+
+
+
+///////////////////////End function to copy files ////////////////////////
 
 
 int main(int argc, char ** argv) {
@@ -89,7 +178,7 @@ int main(int argc, char ** argv) {
     exit(EXIT_FAILURE);
   }
 
-  scandirOneLevel(sourceFolder);
+  scandirOneLevel(sourceFolder, destinationFolder);
 
   return 0;
 
