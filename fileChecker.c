@@ -67,6 +67,14 @@ void scandirOneLevel(const char* sourceDir,const char* destinationDir, int depth
       checkFile(sourceFilePath, destinationFilePath);
       //TODO call funciton to copy to destination if file was modified
       //scandir(entry->d_name, depth+4);
+    } else if (S_ISDIR(statbuffer.st_mode)) {
+      //If it is directory in scanned folder add to check array
+      char sourceFilePath [250];
+      strcpy(sourceFilePath, sourceDir);
+      strcat(sourceFilePath, "/");
+      strcat(sourceFilePath, entry->d_name);
+      string pathToFileToAdd(sourceFilePath);
+      sourcePathScannedFilesPath.push_back(pathToFileToAdd);
     }
     // } else if(S_ISDIR(statbuffer.st_mode)) {
     //   printf("DirName: %*s%s\n", depth, "", entry->d_name);
@@ -180,6 +188,12 @@ void checkIfDestinationFilesHaveSourceExisting(vector<string> sourceFilePaths, c
           remove(fullPathToDestinationFile.c_str());
         }
 
+      } else if (S_ISDIR(statbuffer.st_mode)) {
+        string dirPathString(destinationFilePath);
+        string fullPathToDestinationDir = dirPathString + "/" + entry->d_name;
+        if(find(destinationFilePaths.begin(), destinationFilePaths.end(), fullPathToDestinationDir) == destinationFilePaths.end()) {
+          remove(fullPathToDestinationDir.c_str());
+        }
       }
     }
 
