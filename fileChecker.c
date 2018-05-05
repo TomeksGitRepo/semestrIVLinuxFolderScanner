@@ -30,7 +30,8 @@ using namespace std;
 #define COPYMORE 0644
 
 int copyFiles(const char*, const char*);
-void checkFile(const char* sourceFilePath, const char* destinationFilePath);
+void checkFile(const char* , const char*);
+void checkDirectory(const char* );
 
 vector<string> sourcePathScannedFilesPath;
 
@@ -84,6 +85,63 @@ void scandirOneLevel(const char* sourceDir,const char* destinationDir, int depth
   }
 }
 
+
+///////////////////////Function to scan folders recursively ///////////////////////
+
+void scandirRecursevly(const char* sourceDir,const char* destinationDir, int depth = 0) {
+  DIR* dirPath;
+  struct dirent* entry;
+  struct stat statbuffer;
+
+  dirPath = opendir(sourceDir); //Already checked in calling function
+  chdir(sourceDir);
+  while((entry = readdir(dirPath)) != NULL) {
+    lstat(entry->d_name, &statbuffer);
+    if(S_ISREG(statbuffer.st_mode)) {
+      char sourceFilePath [250];
+      strcpy(sourceFilePath, sourceDir);
+      strcat(sourceFilePath, "/");
+      strcat(sourceFilePath, entry->d_name);
+      string pathToFileToAdd(sourceFilePath);
+      sourcePathScannedFilesPath.push_back(pathToFileToAdd);
+      //TODO just for debugin to see add paths
+      for (vector<string>::const_iterator iter = sourcePathScannedFilesPath.begin(); iter != sourcePathScannedFilesPath.end(); ++iter)
+      cout << *iter << endl;
+
+
+      char destinationFilePath [250];
+      strcpy(destinationFilePath, destinationDir);
+      strcat(destinationFilePath, "/");
+      strcat(destinationFilePath, entry->d_name);
+
+      printf("Coping Filename: %*s%s\n", depth, "", entry->d_name);
+      checkFile(sourceFilePath, destinationFilePath);
+      continue;
+      //TODO call funciton to copy to destination if file was modified
+      //scandir(entry->d_name, depth+4);
+    } else if (S_ISDIR(statbuffer.st_mode)) {
+      //If it is directory in scanned folder add to check array
+      if(strcmp(".", entry->d_name) == 0 || strcmp("..", entry->d_name) == 0)
+        continue;
+      string pathToNewDirectory(sourceDir);
+      pathToNewDirectory.append("/");
+      string fileName(entry->d_name);
+      pathToNewDirectory.append(fileName);
+
+      string pathToNewDestinationDirectory(destinationDir);
+      pathToNewDestinationDirectory.append("/");
+      pathToNewDestinationDirectory.append(entry->d_name);
+      cout << "pathToNewDirectory=" << pathToNewDirectory <<endl;
+      cout << "pathToNewDestinationDirectory=" << pathToNewDestinationDirectory <<endl;
+      checkDirectory(pathToNewDestinationDirectory.c_str());
+      scandirRecursevly(pathToNewDirectory.c_str(), pathToNewDestinationDirectory.c_str());
+    }
+  }
+  chdir("..");
+  closedir(dirPath);
+}
+
+
 ////////////////////////Function to check and copy ///////////////////////
 void checkFile(const char* sourceFilePath, const char* destinationFilePath)
 {
@@ -102,6 +160,20 @@ void checkFile(const char* sourceFilePath, const char* destinationFilePath)
     copyFiles(sourceFilePath, destinationFilePath);
   }
 printf("Coping funciton finshed\n\n");
+}
+
+
+///////////////////////End of function to check end copy
+
+////////////////////////Function to check and copy ///////////////////////
+void checkDirectory(const char* destinationFilePath)
+{
+  struct stat dFileBuffer;
+
+  if(-1 == stat(destinationFilePath, &dFileBuffer) ) {
+    mkdir(destinationFilePath, 0777);
+  }
+printf("Making directory finished\n\n");
 }
 
 
@@ -248,7 +320,8 @@ int main(int argc, char ** argv) {
     exit(EXIT_FAILURE);
   }
 
-  scandirOneLevel(sourceFolder, destinationFolder);
+  // scandirOneLevel(sourceFolder, destinationFolder); //TODO uncoment it works for one level of deepnes if this word exists :D
+  scandirRecursevly(sourceFolder, destinationFolder);
   checkIfDestinationFilesHaveSourceExisting(sourcePathScannedFilesPath, sourceFolder, destinationFolder);
 
   return 0;
