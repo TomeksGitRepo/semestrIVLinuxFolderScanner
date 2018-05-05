@@ -18,11 +18,21 @@
 #include <stdint.h>
 #include <string.h>
 
+//Include for file dirPath
+#include <vector>
+#include <string>
+#include <iostream>
+#include <regex>
+
+using namespace std;
+
 #define BUFFERSIZE 1024
 #define COPYMORE 0644
 
 int copyFiles(const char*, const char*);
 void checkFile(const char* sourceFilePath, const char* destinationFilePath);
+
+vector<string> sourcePathScannedFilesPath;
 
 
 void scandirOneLevel(const char* sourceDir,const char* destinationDir, int depth = 0) {
@@ -41,6 +51,12 @@ void scandirOneLevel(const char* sourceDir,const char* destinationDir, int depth
       strcpy(sourceFilePath, sourceDir);
       strcat(sourceFilePath, "/");
       strcat(sourceFilePath, entry->d_name);
+      string pathToFileToAdd(sourceFilePath);
+      sourcePathScannedFilesPath.push_back(pathToFileToAdd);
+      //TODO just for debugin to see add paths
+      for (vector<string>::const_iterator iter = sourcePathScannedFilesPath.begin(); iter != sourcePathScannedFilesPath.end(); ++iter)
+      cout << *iter << endl;
+
 
       char destinationFilePath [250];
       strcpy(destinationFilePath, destinationDir);
@@ -134,6 +150,41 @@ int copyFiles(const char *source, const char *destination)
 
 ///////////////////////End function to copy files ////////////////////////
 
+void checkIfDestinationFilesHaveSourceExisting(vector<string> sourceFilePaths, const char* sourceFilePath, const char* destinationFilePath) {
+    string sourceFilePathString(sourceFilePath);
+    string destinationFilePathString(destinationFilePath);
+
+    DIR* dirPath;
+    struct dirent* entry;
+    struct stat statbuffer;
+
+    vector<string> destinationFilePaths;
+    for (vector<string>::const_iterator iter = sourcePathScannedFilesPath.begin(); iter != sourcePathScannedFilesPath.end(); ++iter)
+    {
+      string tempString = *iter;
+
+      tempString = regex_replace(tempString, regex(sourceFilePathString), destinationFilePathString);
+      destinationFilePaths.push_back(tempString);
+    }
+    for (vector<string>::const_iterator iter = destinationFilePaths.begin(); iter != destinationFilePaths.end(); ++iter)
+    {
+      cout << *iter << endl;
+    }
+    dirPath = opendir(destinationFilePath);
+    while((entry = readdir(dirPath)) != NULL) {
+      lstat(entry->d_name, &statbuffer);
+      if(S_ISREG(statbuffer.st_mode)) {
+        string dirPathString(destinationFilePath);
+        string fullPathToDestinationFile = dirPathString + "/" + entry->d_name;
+        if(find(destinationFilePaths.begin(), destinationFilePaths.end(), fullPathToDestinationFile) == destinationFilePaths.end()) {
+          remove(fullPathToDestinationFile.c_str());
+        }
+
+      }
+    }
+
+}
+
 
 int main(int argc, char ** argv) {
   ///////////////////////////Start parsing arguments ////////////////////
@@ -153,6 +204,8 @@ int main(int argc, char ** argv) {
     printf("Use -R flag to scan folder recursively\n");
       exit(EXIT_FAILURE);
   }
+
+
 
   char rFlag[] = "-R";
   for(i = 0; i < argc; i++) {
@@ -182,6 +235,7 @@ int main(int argc, char ** argv) {
   }
 
   scandirOneLevel(sourceFolder, destinationFolder);
+  checkIfDestinationFilesHaveSourceExisting(sourcePathScannedFilesPath, sourceFolder, destinationFolder);
 
   return 0;
 
