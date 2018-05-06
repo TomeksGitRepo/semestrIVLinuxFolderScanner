@@ -1,1 +1,1 @@
-check if folder is in destination if it isnt remove
+Program is crashing when folder is removed from source
