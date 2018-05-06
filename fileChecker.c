@@ -24,6 +24,9 @@
 #include <iostream>
 #include <regex>
 
+//Added for logging
+#include <syslog.h>
+
 using namespace std;
 
 #define BUFFERSIZE 1024
@@ -63,10 +66,13 @@ void scandirOneLevel(const char* sourceDir,const char* destinationDir, int depth
       strcpy(destinationFilePath, destinationDir);
       strcat(destinationFilePath, "/");
       strcat(destinationFilePath, entry->d_name);
-
-
-      printf("Coping Filename: %*s%s\n", depth, "", entry->d_name);
+      //printf("Coping Filename: %*s%s\n", depth, "", entry->d_name);
       checkFile(sourceFilePath, destinationFilePath);
+
+
+      openlog("slog", LOG_PID, LOG_USER);
+      syslog(LOG_INFO, "File copied");
+      closelog();
       //TODO call funciton to copy to destination if file was modified
       //scandir(entry->d_name, depth+4);
     } else if (S_ISDIR(statbuffer.st_mode)) {
@@ -158,9 +164,17 @@ void checkFile(const char* sourceFilePath, const char* destinationFilePath)
   if(-1 == stat(destinationFilePath, &dFileBuffer) ) {
     printf("No file in dest starting coping\n");
     copyFiles(sourceFilePath, destinationFilePath);
+    ///////////////////Report coping ///////////////////////////
+    openlog("slog", LOG_PID, LOG_USER);
+    syslog(LOG_INFO, "File copied");
+    closelog();
   } else if (sFileBuffer.st_mtime > dFileBuffer.st_mtime) {
     //Copy file if it was modified
     copyFiles(sourceFilePath, destinationFilePath);
+    ///////////////////Report coping when source modification is newer///////////////////////////
+    openlog("slog", LOG_PID, LOG_USER);
+    syslog(LOG_INFO, "File copied because source was modified");
+    closelog();
   }
 printf("Coping funciton finshed\n\n");
 }
@@ -175,7 +189,12 @@ void checkDirectory(const char* destinationFilePath)
 
   if(-1 == stat(destinationFilePath, &dFileBuffer) ) {
     mkdir(destinationFilePath, 0777);
+    ///////////////////Report making of new directory///////////////////////////
+    openlog("slog", LOG_PID, LOG_USER);
+    syslog(LOG_INFO, "New directory created");
+    closelog();
   }
+
 printf("Making directory finished\n\n");
 }
 
@@ -193,12 +212,20 @@ int copyFiles(const char *source, const char *destination)
   /* open files */
   if( (in_fd=open(source, O_RDONLY)) == -1 )
   {
+    ///////////////////Report error on opening source directory///////////////////////////
+    openlog("slog", LOG_PID, LOG_USER);
+    syslog(LOG_ERR, "Error opening source file");
+    closelog();
     printf("Cannot open %s", source);
   }
 
 
   if( (out_fd=creat(destination, COPYMORE)) == -1 )
   {
+    ///////////////////Report error///////////////////////////
+    openlog("slog", LOG_PID, LOG_USER);
+    syslog(LOG_ERR, "Error on creation of destination");
+    closelog();
     printf("Cannot creat %s ", destination);
   }
 
@@ -208,12 +235,20 @@ int copyFiles(const char *source, const char *destination)
   {
     if( write(out_fd, buf, n_chars) != n_chars )
     {
+      ///////////////////Report error ///////////////////////////
+      openlog("slog", LOG_PID, LOG_USER);
+      syslog(LOG_ERR, "Write error on destination");
+      closelog();
       printf("Write error to %s", destination);
     }
 
 
     if( n_chars == -1 )
     {
+      ///////////////////Report error ///////////////////////////
+      openlog("slog", LOG_PID, LOG_USER);
+      syslog(LOG_ERR, "Read error on source");
+      closelog();
       printf("Read error from %s", source);
     }
   }
@@ -222,6 +257,10 @@ int copyFiles(const char *source, const char *destination)
     /* close files */
     if( close(in_fd) == -1 || close(out_fd) == -1 )
     {
+      ///////////////////Report error ///////////////////////////
+      openlog("slog", LOG_PID, LOG_USER);
+      syslog(LOG_ERR, "Read error on close of destintation file");
+      closelog();
       printf("Error closing files");
     }
 
@@ -235,19 +274,20 @@ vector<string> changeFromSourceToDestinationPath (vector<string> vectorToChange,
 
   for (vector<string>::const_iterator iter = vectorToChange.begin(); iter != vectorToChange.end(); ++iter)
   {
-
+    //TODO uncoment cout for debugging
     string sourcePathString(sourcePath);
     string tempString = *iter;
-    cout << "tempString=" << tempString << endl;
+    //cout << "tempString=" << tempString << endl;
     //Check if path is not already changed to destination path
     string destinationPathString(destinationPath);
-    cout << "tempString=" << tempString << " and destinationPathString=" << destinationPathString << endl;
+
+    //cout << "tempString=" << tempString << " and destinationPathString=" << destinationPathString << endl;
 
     bool found = strcmp(tempString.c_str(), destinationPathString.c_str()) != 0;
     if(found)
     {
       tempString = regex_replace(tempString, regex(sourcePathString), destinationPathString);
-      cout << "tempString after regex replacement:" << tempString << endl;
+      //cout << "tempString after regex replacement:" << tempString << endl;
       //cout << "tempString after modification=" << tempString << endl;
       vectorToReturn.push_back(tempString);
     } else {
@@ -266,20 +306,20 @@ vector<string> changeFromSourceToDestinationPath (vector<string> vectorToChange,
 void checkIfDestinationFilesHaveSourceExisting(vector<string> sourceFilePaths, const char* sourceFilePath, const char* destinationFilePath) {
     string sourceFilePathString(sourceFilePath);
     string destinationFilePathString(destinationFilePath);
-
-    cout << "sourceFilePathString=" << sourceFilePathString << endl;
-    cout << "destinationFilePathString=" << destinationFilePathString << endl;
+    //TODO debugg cout for debugging
+    //cout << "sourceFilePathString=" << sourceFilePathString << endl;
+    //cout << "destinationFilePathString=" << destinationFilePathString << endl;
 
     DIR* dirPath;
     struct dirent* entry;
     struct stat statbuffer;
 
     vector<string> destinationFilePaths = changeFromSourceToDestinationPath(sourceFilePaths, sourceFilePath, destinationFilePath );
-    cout <<  " Pure destinationFilePaths:" << endl;
-    for (vector<string>::const_iterator iter = destinationFilePaths.begin(); iter != destinationFilePaths.end(); ++iter)
-    {
-      cout << *iter << endl;
-    }
+    //cout <<  " Pure destinationFilePaths:" << endl;
+    // for (vector<string>::const_iterator iter = destinationFilePaths.begin(); iter != destinationFilePaths.end(); ++iter)
+    // {
+    //   cout << *iter << endl;
+    // }
     dirPath = opendir(destinationFilePath);
 
 
@@ -289,13 +329,13 @@ void checkIfDestinationFilesHaveSourceExisting(vector<string> sourceFilePaths, c
       if(S_ISREG(statbuffer.st_mode)) {
         string dirPathString(destinationFilePath);
         string fullPathToDestinationFile = dirPathString + "/" + entry->d_name;
-        cout << "File to found in array fullPathToDestinationFile:"<< fullPathToDestinationFile << endl;
-        cout << "destinationFilePaths=======================" << endl;
-        for (vector<string>::const_iterator iter = destinationFilePaths.begin(); iter != destinationFilePaths.end(); ++iter)
-        {
-          cout << *iter << endl;
-        }
-        cout << "destinationFilePaths=======================" << endl;
+        // cout << "File to found in array fullPathToDestinationFile:"<< fullPathToDestinationFile << endl;
+        // cout << "destinationFilePaths=======================" << endl;
+        // for (vector<string>::const_iterator iter = destinationFilePaths.begin(); iter != destinationFilePaths.end(); ++iter)
+        // {
+        //   cout << *iter << endl;
+        // }
+        // cout << "destinationFilePaths=======================" << endl;
 
         int flagToLeave = 0;
         for (vector<string>::const_iterator iter = destinationFilePaths.begin(); iter != destinationFilePaths.end(); ++iter)
@@ -324,7 +364,7 @@ void checkIfDestinationFilesHaveSourceExisting(vector<string> sourceFilePaths, c
 
         string dirPathString(destinationFilePath);
         string fullPathToDestinationDir = dirPathString + "/" + entry->d_name;
-        cout << "Dir to found in array fullPathToDestinationDir:"<< fullPathToDestinationDir << endl;
+        //cout << "Dir to found in array fullPathToDestinationDir:"<< fullPathToDestinationDir << endl;
         // cout << "fullPathToDestinationDir DIRECTORY=" << fullPathToDestinationDir << endl;
         size_t found;
         int flagToLeaveDir = 0;
@@ -334,13 +374,13 @@ void checkIfDestinationFilesHaveSourceExisting(vector<string> sourceFilePaths, c
           // cout << "Compering: fullPathToDestinationDir:" << fullPathToDestinationDir << " tmp: " << tmp << endl;
           if(strcmp(fullPathToDestinationDir.c_str(), tmp.c_str()) == 0)
           {
-            cout << "Substring found in:" <<  destinationFilePath << endl;
+            //cout << "Substring found in:" <<  destinationFilePath << endl;
             flagToLeaveDir = 1;
           }
         }
         if(!flagToLeaveDir)
         {
-          cout << "Removing dir: " <<  fullPathToDestinationDir << endl;
+          //cout << "Removing dir: " <<  fullPathToDestinationDir << endl;
            remove(fullPathToDestinationDir.c_str());
         }
 
@@ -356,6 +396,12 @@ void checkIfDestinationFilesHaveSourceExisting(vector<string> sourceFilePaths, c
 
 
 int main(int argc, char ** argv) {
+
+  ////////////////Logging start of program ///////////////////////////
+  openlog("slog", LOG_PID, LOG_USER);
+  syslog(LOG_INFO, "Scanner program started");
+  closelog();
+
   ///////////////////////////Start parsing arguments ////////////////////
   size_t i;
   const char* sourceFolder;
@@ -373,8 +419,6 @@ int main(int argc, char ** argv) {
     printf("Use -R flag to scan folder recursively\n");
       exit(EXIT_FAILURE);
   }
-
-
 
   char rFlag[] = "-R";
   for(i = 0; i < argc; i++) {
