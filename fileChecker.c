@@ -64,6 +64,7 @@ void scandirOneLevel(const char* sourceDir,const char* destinationDir, int depth
       strcat(destinationFilePath, "/");
       strcat(destinationFilePath, entry->d_name);
 
+
       printf("Coping Filename: %*s%s\n", depth, "", entry->d_name);
       checkFile(sourceFilePath, destinationFilePath);
       //TODO call funciton to copy to destination if file was modified
@@ -104,6 +105,7 @@ void scandirRecursevly(const char* sourceDir,const char* destinationDir, int dep
       strcat(sourceFilePath, entry->d_name);
       string pathToFileToAdd(sourceFilePath);
       sourcePathScannedFilesPath.push_back(pathToFileToAdd);
+      cout << "File added to scan: " << pathToFileToAdd << endl;
       //TODO just for debugin to see add paths
       for (vector<string>::const_iterator iter = sourcePathScannedFilesPath.begin(); iter != sourcePathScannedFilesPath.end(); ++iter)
       cout << *iter << endl;
@@ -131,8 +133,9 @@ void scandirRecursevly(const char* sourceDir,const char* destinationDir, int dep
       string pathToNewDestinationDirectory(destinationDir);
       pathToNewDestinationDirectory.append("/");
       pathToNewDestinationDirectory.append(entry->d_name);
-      cout << "pathToNewDirectory=" << pathToNewDirectory <<endl;
-      cout << "pathToNewDestinationDirectory=" << pathToNewDestinationDirectory <<endl;
+      sourcePathScannedFilesPath.push_back(pathToNewDestinationDirectory);
+
+
       checkDirectory(pathToNewDestinationDirectory.c_str());
       scandirRecursevly(pathToNewDirectory.c_str(), pathToNewDestinationDirectory.c_str());
     }
@@ -226,6 +229,36 @@ int copyFiles(const char *source, const char *destination)
     return 1;
 }
 
+vector<string> changeFromSourceToDestinationPath (vector<string> vectorToChange, const char* sourcePath, const char* destinationPath) {
+  vector<string> vectorToReturn;
+
+
+  for (vector<string>::const_iterator iter = vectorToChange.begin(); iter != vectorToChange.end(); ++iter)
+  {
+
+    string sourcePathString(sourcePath);
+    string tempString = *iter;
+    cout << "tempString=" << tempString << endl;
+    //Check if path is not already changed to destination path
+    string destinationPathString(destinationPath);
+    cout << "tempString=" << tempString << " and destinationPathString=" << destinationPathString << endl;
+
+    bool found = strcmp(tempString.c_str(), destinationPathString.c_str()) != 0;
+    if(found)
+    {
+      tempString = regex_replace(tempString, regex(sourcePathString), destinationPathString);
+      cout << "tempString after regex replacement:" << tempString << endl;
+      //cout << "tempString after modification=" << tempString << endl;
+      vectorToReturn.push_back(tempString);
+    } else {
+      string tempString = *iter;
+      //cout << "tempString not changed modification=" << destinationPathString << endl;
+      vectorToReturn.push_back(tempString);
+    }
+
+  }
+  return vectorToReturn;
+}
 
 
 ///////////////////////End function to copy files ////////////////////////
@@ -234,42 +267,92 @@ void checkIfDestinationFilesHaveSourceExisting(vector<string> sourceFilePaths, c
     string sourceFilePathString(sourceFilePath);
     string destinationFilePathString(destinationFilePath);
 
+    cout << "sourceFilePathString=" << sourceFilePathString << endl;
+    cout << "destinationFilePathString=" << destinationFilePathString << endl;
+
     DIR* dirPath;
     struct dirent* entry;
     struct stat statbuffer;
 
-    vector<string> destinationFilePaths;
-    for (vector<string>::const_iterator iter = sourcePathScannedFilesPath.begin(); iter != sourcePathScannedFilesPath.end(); ++iter)
-    {
-      string tempString = *iter;
-
-      tempString = regex_replace(tempString, regex(sourceFilePathString), destinationFilePathString);
-      destinationFilePaths.push_back(tempString);
-    }
+    vector<string> destinationFilePaths = changeFromSourceToDestinationPath(sourceFilePaths, sourceFilePath, destinationFilePath );
+    cout <<  " Pure destinationFilePaths:" << endl;
     for (vector<string>::const_iterator iter = destinationFilePaths.begin(); iter != destinationFilePaths.end(); ++iter)
     {
       cout << *iter << endl;
     }
     dirPath = opendir(destinationFilePath);
+
+
     while((entry = readdir(dirPath)) != NULL) {
+      chdir(destinationFilePath);
       lstat(entry->d_name, &statbuffer);
       if(S_ISREG(statbuffer.st_mode)) {
         string dirPathString(destinationFilePath);
         string fullPathToDestinationFile = dirPathString + "/" + entry->d_name;
-        if(find(destinationFilePaths.begin(), destinationFilePaths.end(), fullPathToDestinationFile) == destinationFilePaths.end()) {
-          remove(fullPathToDestinationFile.c_str());
+        cout << "File to found in array fullPathToDestinationFile:"<< fullPathToDestinationFile << endl;
+        cout << "destinationFilePaths=======================" << endl;
+        for (vector<string>::const_iterator iter = destinationFilePaths.begin(); iter != destinationFilePaths.end(); ++iter)
+        {
+          cout << *iter << endl;
+        }
+        cout << "destinationFilePaths=======================" << endl;
+
+        int flagToLeave = 0;
+        for (vector<string>::const_iterator iter = destinationFilePaths.begin(); iter != destinationFilePaths.end(); ++iter)
+        {
+          string tmp(*iter);
+
+          // cout << "Compering: fullPathToDestinationFile:" << fullPathToDestinationFile << " tmp: " << tmp << endl;
+          if(strcmp(fullPathToDestinationFile.c_str(), tmp.c_str()) == 0)
+          {
+            // cout << "Substring found in:" <<  destinationFilePath << endl;
+            flagToLeave = 1;
+
+          }
+        }
+        if(!flagToLeave)
+        {
+          // cout << "Removing file: " <<  fullPathToDestinationFile << endl;
+           remove(fullPathToDestinationFile.c_str());
         }
 
       } else if (S_ISDIR(statbuffer.st_mode)) {
+        if(strcmp(".", entry->d_name) == 0 || strcmp("..", entry->d_name) == 0)
+        {
+          continue;
+        }
+
         string dirPathString(destinationFilePath);
         string fullPathToDestinationDir = dirPathString + "/" + entry->d_name;
-        if(find(destinationFilePaths.begin(), destinationFilePaths.end(), fullPathToDestinationDir) == destinationFilePaths.end()) {
-          remove(fullPathToDestinationDir.c_str());
+        cout << "Dir to found in array fullPathToDestinationDir:"<< fullPathToDestinationDir << endl;
+        // cout << "fullPathToDestinationDir DIRECTORY=" << fullPathToDestinationDir << endl;
+        size_t found;
+        int flagToLeaveDir = 0;
+        for (vector<string>::const_iterator iter = destinationFilePaths.begin(); iter != destinationFilePaths.end(); ++iter)
+        {
+          string tmp(*iter);
+          // cout << "Compering: fullPathToDestinationDir:" << fullPathToDestinationDir << " tmp: " << tmp << endl;
+          if(strcmp(fullPathToDestinationDir.c_str(), tmp.c_str()) == 0)
+          {
+            cout << "Substring found in:" <<  destinationFilePath << endl;
+            flagToLeaveDir = 1;
+          }
         }
+        if(!flagToLeaveDir)
+        {
+          cout << "Removing dir: " <<  fullPathToDestinationDir << endl;
+           remove(fullPathToDestinationDir.c_str());
+        }
+
+        checkIfDestinationFilesHaveSourceExisting(destinationFilePaths, sourceFilePath, fullPathToDestinationDir.c_str());
+
+        //checkIfDestinationFilesHaveSourceExisting(sourceFilePaths, sourceFilePath, fullPathToDestinationDir.c_str());
+
       }
     }
-
+    closedir(dirPath);
 }
+
 
 
 int main(int argc, char ** argv) {
@@ -323,6 +406,27 @@ int main(int argc, char ** argv) {
   // scandirOneLevel(sourceFolder, destinationFolder); //TODO uncoment it works for one level of deepnes if this word exists :D
   scandirRecursevly(sourceFolder, destinationFolder);
   checkIfDestinationFilesHaveSourceExisting(sourcePathScannedFilesPath, sourceFolder, destinationFolder);
+
+  // //TODO just to test function to change vector
+  //
+  // //Push some valeues to vector
+  // sourcePathScannedFilesPath.push_back("/home/tom/studiaIVSemestr/test/epic");
+  // sourcePathScannedFilesPath.push_back("/home/tom/studiaIVSemestr/test/epic/fileToSave");
+  // vector<string> returnedVector = changeFromSourceToDestinationPath(sourcePathScannedFilesPath, sourceFolder, destinationFolder);
+  // cout << "Vector after changes:" << endl;
+  // for (vector<string>::const_iterator iter = returnedVector.begin(); iter != returnedVector.end(); ++iter)
+  // {
+  //   cout << *iter << endl;
+  // }
+  // string destinationFolderString(destinationFolder);
+  // string newDestinationFolder =  destinationFolderString + "/epic";
+  // cout << "Before 2nd pass" << endl;
+  // returnedVector = changeFromSourceToDestinationPath(returnedVector, sourceFolder, newDestinationFolder.c_str());
+  // cout << "Vector after 2nd change:" << endl;
+  // for (vector<string>::const_iterator iter = returnedVector.begin(); iter != returnedVector.end(); ++iter)
+  // {
+  //   cout << *iter << endl;
+  // }
 
   return 0;
 
