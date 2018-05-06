@@ -27,6 +27,10 @@
 //Added for logging
 #include <syslog.h>
 
+//Added for signals
+#include <signal.h>
+#include <curses.h> // Need to install apt-get install libncurses5-dev libncursesw5-dev
+
 using namespace std;
 
 #define BUFFERSIZE 1024
@@ -38,6 +42,12 @@ void checkDirectory(const char* );
 
 vector<string> sourcePathScannedFilesPath;
 
+
+////////////////Signal handler ////////////////////////
+static void sigint_handler(int signo) {
+  printf("Caught SIGUSR1!\n");
+  exit(EXIT_SUCCESS);
+}
 
 void scandirOneLevel(const char* sourceDir,const char* destinationDir, int depth = 0) {
   DIR* dirPath;
@@ -397,6 +407,12 @@ void checkIfDestinationFilesHaveSourceExisting(vector<string> sourceFilePaths, c
 
 int main(int argc, char ** argv) {
 
+  /////////////////Register signal handler ////////////////////////////
+  if(signal(SIGUSR1, sigint_handler) == SIG_ERR) {
+    fprintf(stderr, "Cannot handle SIGUSR1!\n");
+    exit(EXIT_FAILURE);
+  }
+
   ////////////////Logging start of program ///////////////////////////
   openlog("slog", LOG_PID, LOG_USER);
   syslog(LOG_INFO, "Scanner program started");
@@ -471,6 +487,12 @@ int main(int argc, char ** argv) {
   // {
   //   cout << *iter << endl;
   // }
+
+
+  //////////////////////////////Testing signals ///////////////////////////
+  while(1) {
+
+  }
 
   return 0;
 
