@@ -1,4 +1,4 @@
-To run type:
+To run type: <br />
 make
 ./fileChecker /<path to source>/ /<path to destination>/  
 
