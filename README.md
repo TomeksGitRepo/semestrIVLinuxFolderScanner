@@ -1,6 +1,6 @@
 To run type: <br />
-make
-./fileChecker /<path to source>/ /<path to destination>/  
+make <br />
+./fileChecker /path to source/ /path to destination/
 
 optional: -R flag to scan recursivly
  
