@@ -50,6 +50,7 @@ static void sigint_handler(int signo) {
 }
 
 void scandirOneLevel(const char* sourceDir,const char* destinationDir, int depth = 0) {
+  cout << "IN FUNCTION scandirOneLevel" << endl;
   DIR* dirPath;
   struct dirent* entry;
   struct stat statbuffer;
@@ -106,6 +107,7 @@ void scandirOneLevel(const char* sourceDir,const char* destinationDir, int depth
 ///////////////////////Function to scan folders recursively ///////////////////////
 
 void scandirRecursevly(const char* sourceDir,const char* destinationDir, int depth = 0) {
+  cout << "IN FUNCTION scandirRecursevly" << endl;
   DIR* dirPath;
   struct dirent* entry;
   struct stat statbuffer;
@@ -422,6 +424,7 @@ int main(int argc, char ** argv) {
   size_t i;
   const char* sourceFolder;
   const char* destinationFolder;
+  int recursiveFlag = 0;
 
   //Geting files infos
   struct stat sFolderBuffer;
@@ -449,6 +452,7 @@ int main(int argc, char ** argv) {
 
       if(!strcmp(option, rFlag)) {
         printf("Additional flag activated: %s\n", option);
+        recursiveFlag = 1;
       }
 
     }
@@ -464,8 +468,10 @@ int main(int argc, char ** argv) {
   }
 
   // scandirOneLevel(sourceFolder, destinationFolder); //TODO uncoment it works for one level of deepnes if this word exists :D
-  scandirRecursevly(sourceFolder, destinationFolder);
-  checkIfDestinationFilesHaveSourceExisting(sourcePathScannedFilesPath, sourceFolder, destinationFolder);
+
+  // scandirRecursevly(sourceFolder, destinationFolder); //TODO uncoment for recursive function test
+
+  // checkIfDestinationFilesHaveSourceExisting(sourcePathScannedFilesPath, sourceFolder, destinationFolder); //TODO uncoment to start folder syncronization function
 
   // //TODO just to test function to change vector
   //
@@ -489,66 +495,58 @@ int main(int argc, char ** argv) {
   // }
 
 
-  //////////////////////////////Testing signals ///////////////////////////
-  while(1) {
-
-  }
-
-  return 0;
+//  return 0;
 
   //////////////////////////END parsing arguments //////////////////////////
 
   //TODO uncoment for deamon to start
-  // //our process ID and Session ID
-  // pid_t pid, sid;
-  //
-  // //Fork off the parent process
-  // pid = fork();
-  // if(pid < 0) {
-  //   exit(EXIT_FAILURE);
-  // }
-  // //if we got a good PID, then we can exit the parent process
-  // if (pid > 0) {
-  //   exit(EXIT_SUCCESS);
-  // }
-  //
-  // //Change the file mode mask
-  // umask(0);
-  //
-  // //Open any logs here
-  //
-  // //Create a new SID for the child process
-  // sid = setsid();
-  // if (sid < 0) {
-  //     //log any failure
-  //     exit(EXIT_FAILURE);
-  // }
-  //
-  // //Change the current working directory
-  // // if ((chdir("/")) < 0) {
-  // //   //Log any failure here
-  // //   exit(EXIT_FAILURE);
-  // // }
-  //
-  //
-  // //Close out the standard file descriptor
-  // // close(STDIN_FILENO);
-  // // close(STDOUT_FILENO);
-  // // close(STDERR_FILENO);
-  //
-  // //initialization finished
-  //
-  // //Specific initialization goes here
-  //
-  // //The BIG LOOP
-  //
-  // while(1) {
-  //   //Do some task here
-  //   std::ofstream myfile;
-  //   myfile.open ("example.txt", std::ofstream::app);
-  //   myfile << "Im working.\n";
-  //   myfile.close();
-  //   sleep(30);
-  // }
-  // exit(EXIT_SUCCESS);
+  //our process ID and Session ID
+  pid_t pid, sid;
+
+  //Fork off the parent process
+  pid = fork();
+  if(pid < 0) {
+    exit(EXIT_FAILURE);
+  }
+  //if we got a good PID, then we can exit the parent process
+  if (pid > 0) {
+    exit(EXIT_SUCCESS);
+  }
+
+  //Change the file mode mask
+  umask(0);
+
+  //Open any logs here
+
+  //Create a new SID for the child process
+  sid = setsid();
+  if (sid < 0) {
+      //log any failure
+      exit(EXIT_FAILURE);
+  }
+
+
+  //Close out the standard file descriptor
+  // close(STDIN_FILENO);
+  // close(STDOUT_FILENO);
+  // close(STDERR_FILENO);
+
+  //initialization finished
+
+  //Specific initialization goes here
+
+  //The BIG LOOP
+
+  while(1) {
+    //Do some task here
+    if (!recursiveFlag) {
+      scandirOneLevel(sourceFolder, destinationFolder);
+      checkIfDestinationFilesHaveSourceExisting(sourcePathScannedFilesPath, sourceFolder, destinationFolder);
+    } else {
+      scandirRecursevly(sourceFolder, destinationFolder);
+      checkIfDestinationFilesHaveSourceExisting(sourcePathScannedFilesPath, sourceFolder, destinationFolder);
+    }
+    sleep(30);
+  }
+  exit(EXIT_SUCCESS);
 }
