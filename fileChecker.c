@@ -31,6 +31,8 @@
 #include <signal.h>
 #include <curses.h> // Need to install apt-get install libncurses5-dev libncursesw5-dev
 
+#include <algorithm> // to remove from vector
+
 using namespace std;
 
 #define BUFFERSIZE 1024
@@ -322,9 +324,10 @@ void checkIfDestinationFilesHaveSourceExisting(vector<string> sourceFilePaths, c
     //cout << "sourceFilePathString=" << sourceFilePathString << endl;
     //cout << "destinationFilePathString=" << destinationFilePathString << endl;
 
-    DIR* dirPath;
+    DIR* dirPath = nullptr;
     struct dirent* entry;
     struct stat statbuffer;
+    struct stat checkIfExistsBuffer;
 
     vector<string> destinationFilePaths = changeFromSourceToDestinationPath(sourceFilePaths, sourceFilePath, destinationFilePath );
     //cout <<  " Pure destinationFilePaths:" << endl;
@@ -332,77 +335,84 @@ void checkIfDestinationFilesHaveSourceExisting(vector<string> sourceFilePaths, c
     // {
     //   cout << *iter << endl;
     // }
-    dirPath = opendir(destinationFilePath);
 
+    if(stat(destinationFilePath, &checkIfExistsBuffer) == -1) {
+      cout << "File path not existing in check" << endl;
+      sourceFilePaths.erase(remove(sourceFilePaths.begin(), sourceFilePaths.end(), destinationFilePath), sourceFilePaths.end());
+      return;
+    } else {
+      dirPath = opendir(destinationFilePath);
+      while((entry = readdir(dirPath)) != NULL) {
+        chdir(destinationFilePath);
+        lstat(entry->d_name, &statbuffer);
+        if(S_ISREG(statbuffer.st_mode)) {
+          string dirPathString(destinationFilePath);
+          string fullPathToDestinationFile = dirPathString + "/" + entry->d_name;
+          // cout << "File to found in array fullPathToDestinationFile:"<< fullPathToDestinationFile << endl;
+          // cout << "destinationFilePaths=======================" << endl;
+          // for (vector<string>::const_iterator iter = destinationFilePaths.begin(); iter != destinationFilePaths.end(); ++iter)
+          // {
+          //   cout << *iter << endl;
+          // }
+          // cout << "destinationFilePaths=======================" << endl;
 
-    while((entry = readdir(dirPath)) != NULL) {
-      chdir(destinationFilePath);
-      lstat(entry->d_name, &statbuffer);
-      if(S_ISREG(statbuffer.st_mode)) {
-        string dirPathString(destinationFilePath);
-        string fullPathToDestinationFile = dirPathString + "/" + entry->d_name;
-        // cout << "File to found in array fullPathToDestinationFile:"<< fullPathToDestinationFile << endl;
-        // cout << "destinationFilePaths=======================" << endl;
-        // for (vector<string>::const_iterator iter = destinationFilePaths.begin(); iter != destinationFilePaths.end(); ++iter)
-        // {
-        //   cout << *iter << endl;
-        // }
-        // cout << "destinationFilePaths=======================" << endl;
-
-        int flagToLeave = 0;
-        for (vector<string>::const_iterator iter = destinationFilePaths.begin(); iter != destinationFilePaths.end(); ++iter)
-        {
-          string tmp(*iter);
-
-          // cout << "Compering: fullPathToDestinationFile:" << fullPathToDestinationFile << " tmp: " << tmp << endl;
-          if(strcmp(fullPathToDestinationFile.c_str(), tmp.c_str()) == 0)
+          int flagToLeave = 0;
+          for (vector<string>::const_iterator iter = destinationFilePaths.begin(); iter != destinationFilePaths.end(); ++iter)
           {
-            // cout << "Substring found in:" <<  destinationFilePath << endl;
-            flagToLeave = 1;
+            string tmp(*iter);
 
+            // cout << "Compering: fullPathToDestinationFile:" << fullPathToDestinationFile << " tmp: " << tmp << endl;
+            if(strcmp(fullPathToDestinationFile.c_str(), tmp.c_str()) == 0)
+            {
+              // cout << "Substring found in:" <<  destinationFilePath << endl;
+              flagToLeave = 1;
+
+            }
           }
-        }
-        if(!flagToLeave)
-        {
-          // cout << "Removing file: " <<  fullPathToDestinationFile << endl;
-           remove(fullPathToDestinationFile.c_str());
-        }
-
-      } else if (S_ISDIR(statbuffer.st_mode)) {
-        if(strcmp(".", entry->d_name) == 0 || strcmp("..", entry->d_name) == 0)
-        {
-          continue;
-        }
-
-        string dirPathString(destinationFilePath);
-        string fullPathToDestinationDir = dirPathString + "/" + entry->d_name;
-        //cout << "Dir to found in array fullPathToDestinationDir:"<< fullPathToDestinationDir << endl;
-        // cout << "fullPathToDestinationDir DIRECTORY=" << fullPathToDestinationDir << endl;
-        size_t found;
-        int flagToLeaveDir = 0;
-        for (vector<string>::const_iterator iter = destinationFilePaths.begin(); iter != destinationFilePaths.end(); ++iter)
-        {
-          string tmp(*iter);
-          // cout << "Compering: fullPathToDestinationDir:" << fullPathToDestinationDir << " tmp: " << tmp << endl;
-          if(strcmp(fullPathToDestinationDir.c_str(), tmp.c_str()) == 0)
+          if(!flagToLeave)
           {
-            //cout << "Substring found in:" <<  destinationFilePath << endl;
-            flagToLeaveDir = 1;
+            // cout << "Removing file: " <<  fullPathToDestinationFile << endl;
+             remove(fullPathToDestinationFile.c_str());
           }
+
+        } else if (S_ISDIR(statbuffer.st_mode)) {
+          if(strcmp(".", entry->d_name) == 0 || strcmp("..", entry->d_name) == 0)
+          {
+            continue;
+          }
+
+          string dirPathString(destinationFilePath);
+          string fullPathToDestinationDir = dirPathString + "/" + entry->d_name;
+          //cout << "Dir to found in array fullPathToDestinationDir:"<< fullPathToDestinationDir << endl;
+          // cout << "fullPathToDestinationDir DIRECTORY=" << fullPathToDestinationDir << endl;
+          size_t found;
+          int flagToLeaveDir = 0;
+          for (vector<string>::const_iterator iter = destinationFilePaths.begin(); iter != destinationFilePaths.end(); ++iter)
+          {
+            string tmp(*iter);
+            // cout << "Compering: fullPathToDestinationDir:" << fullPathToDestinationDir << " tmp: " << tmp << endl;
+            if(strcmp(fullPathToDestinationDir.c_str(), tmp.c_str()) == 0)
+            {
+              //cout << "Substring found in:" <<  destinationFilePath << endl;
+              flagToLeaveDir = 1;
+            }
+          }
+          if(!flagToLeaveDir)
+          {
+            //cout << "Removing dir: " <<  fullPathToDestinationDir << endl;
+             remove(fullPathToDestinationDir.c_str());
+          }
+
+          checkIfDestinationFilesHaveSourceExisting(destinationFilePaths, sourceFilePath, fullPathToDestinationDir.c_str());
+
+          //checkIfDestinationFilesHaveSourceExisting(sourceFilePaths, sourceFilePath, fullPathToDestinationDir.c_str());
+
         }
-        if(!flagToLeaveDir)
-        {
-          //cout << "Removing dir: " <<  fullPathToDestinationDir << endl;
-           remove(fullPathToDestinationDir.c_str());
-        }
-
-        checkIfDestinationFilesHaveSourceExisting(destinationFilePaths, sourceFilePath, fullPathToDestinationDir.c_str());
-
-        //checkIfDestinationFilesHaveSourceExisting(sourceFilePaths, sourceFilePath, fullPathToDestinationDir.c_str());
-
       }
+      closedir(dirPath);
     }
-    closedir(dirPath);
+
+
 }
 
 
@@ -470,8 +480,17 @@ int main(int argc, char ** argv) {
   // scandirOneLevel(sourceFolder, destinationFolder); //TODO uncoment it works for one level of deepnes if this word exists :D
 
   // scandirRecursevly(sourceFolder, destinationFolder); //TODO uncoment for recursive function test
-
+  //
   // checkIfDestinationFilesHaveSourceExisting(sourcePathScannedFilesPath, sourceFolder, destinationFolder); //TODO uncoment to start folder syncronization function
+
+//TODO uncoment to debug function in infinate loop
+  while(1) {
+    scandirRecursevly(sourceFolder, destinationFolder); //TODO uncoment for recursive function test
+
+    checkIfDestinationFilesHaveSourceExisting(sourcePathScannedFilesPath, sourceFolder, destinationFolder); //TODO uncoment to start folder syncronization function
+      sleep(30);
+    }
+}
 
   // //TODO just to test function to change vector
   //
@@ -500,53 +519,53 @@ int main(int argc, char ** argv) {
   //////////////////////////END parsing arguments //////////////////////////
 
   //TODO uncoment for deamon to start
-  //our process ID and Session ID
-  pid_t pid, sid;
-
-  //Fork off the parent process
-  pid = fork();
-  if(pid < 0) {
-    exit(EXIT_FAILURE);
-  }
-  //if we got a good PID, then we can exit the parent process
-  if (pid > 0) {
-    exit(EXIT_SUCCESS);
-  }
-
-  //Change the file mode mask
-  umask(0);
-
-  //Open any logs here
-
-  //Create a new SID for the child process
-  sid = setsid();
-  if (sid < 0) {
-      //log any failure
-      exit(EXIT_FAILURE);
-  }
-
-
-  //Close out the standard file descriptor
-  // close(STDIN_FILENO);
-  // close(STDOUT_FILENO);
-  // close(STDERR_FILENO);
-
-  //initialization finished
-
-  //Specific initialization goes here
-
-  //The BIG LOOP
-
-  while(1) {
-    //Do some task here
-    if (!recursiveFlag) {
-      scandirOneLevel(sourceFolder, destinationFolder);
-      checkIfDestinationFilesHaveSourceExisting(sourcePathScannedFilesPath, sourceFolder, destinationFolder);
-    } else {
-      scandirRecursevly(sourceFolder, destinationFolder);
-      checkIfDestinationFilesHaveSourceExisting(sourcePathScannedFilesPath, sourceFolder, destinationFolder);
-    }
-    sleep(30);
-  }
-  exit(EXIT_SUCCESS);
-}
+//   //our process ID and Session ID
+//   pid_t pid, sid;
+//
+//   //Fork off the parent process
+//   pid = fork();
+//   if(pid < 0) {
+//     exit(EXIT_FAILURE);
+//   }
+//   //if we got a good PID, then we can exit the parent process
+//   if (pid > 0) {
+//     exit(EXIT_SUCCESS);
+//   }
+//
+//   //Change the file mode mask
+//   umask(0);
+//
+//   //Open any logs here
+//
+//   //Create a new SID for the child process
+//   sid = setsid();
+//   if (sid < 0) {
+//       //log any failure
+//       exit(EXIT_FAILURE);
+//   }
+//
+//
+//   //Close out the standard file descriptor
+//   // close(STDIN_FILENO);
+//   // close(STDOUT_FILENO);
+//   // close(STDERR_FILENO);
+//
+//   //initialization finished
+//
+//   //Specific initialization goes here
+//
+//   //The BIG LOOP
+//
+//   while(1) {
+//     //Do some task here
+//     if (!recursiveFlag) {
+//       scandirOneLevel(sourceFolder, destinationFolder);
+//       checkIfDestinationFilesHaveSourceExisting(sourcePathScannedFilesPath, sourceFolder, destinationFolder);
+//     } else {
+//       scandirRecursevly(sourceFolder, destinationFolder);
+//       checkIfDestinationFilesHaveSourceExisting(sourcePathScannedFilesPath, sourceFolder, destinationFolder);
+//     }
+//     sleep(30);
+//   }
+//   exit(EXIT_SUCCESS);
+// }
