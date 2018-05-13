@@ -69,7 +69,16 @@ void scandirOneLevel(const char* sourceDir,const char* destinationDir, int depth
       strcat(sourceFilePath, "/");
       strcat(sourceFilePath, entry->d_name);
       string pathToFileToAdd(sourceFilePath);
-      sourcePathScannedFilesPath.push_back(pathToFileToAdd);
+
+      for(vector<string>::const_iterator iter = sourcePathScannedFilesPath.begin(); iter != sourcePathScannedFilesPath.end(); ++iter)
+      {
+        if ( *iter == pathToFileToAdd) {
+          cout << "File already added breaking" << endl;
+          break;
+        }
+        cout << "Adding " <<  pathToFileToAdd << endl;
+        sourcePathScannedFilesPath.push_back(pathToFileToAdd); // add file only once
+      }
       //TODO just for debugin to see add paths
       for (vector<string>::const_iterator iter = sourcePathScannedFilesPath.begin(); iter != sourcePathScannedFilesPath.end(); ++iter)
       cout << *iter << endl;
@@ -124,7 +133,31 @@ void scandirRecursevly(const char* sourceDir,const char* destinationDir, int dep
       strcat(sourceFilePath, "/");
       strcat(sourceFilePath, entry->d_name);
       string pathToFileToAdd(sourceFilePath);
-      sourcePathScannedFilesPath.push_back(pathToFileToAdd);
+
+
+      if(sourcePathScannedFilesPath.size() == 0) {
+
+        sourcePathScannedFilesPath.push_back(pathToFileToAdd);
+      }
+      cout << "In scandirRecursevly sourcePathScannedFilesPath.size()=" << sourcePathScannedFilesPath.size() << endl;
+
+      bool flagToAddFile = true;
+      for( auto path : sourcePathScannedFilesPath )
+      {
+        cout << "path=" << path << endl;
+        cout << "pathToFileToAdd=" << pathToFileToAdd << endl;
+
+        if ( path == pathToFileToAdd) {
+          cout << "File already added breaking" << endl;
+          flagToAddFile = false;
+          break;
+        }
+      }
+      if(flagToAddFile) {
+        cout << "Adding " <<  pathToFileToAdd << endl;
+        sourcePathScannedFilesPath.push_back(pathToFileToAdd); // add file only once
+      }
+
       cout << "File added to scan: " << pathToFileToAdd << endl;
       //TODO just for debugin to see add paths
       for (vector<string>::const_iterator iter = sourcePathScannedFilesPath.begin(); iter != sourcePathScannedFilesPath.end(); ++iter)
@@ -145,15 +178,39 @@ void scandirRecursevly(const char* sourceDir,const char* destinationDir, int dep
       //If it is directory in scanned folder add to check array
       if(strcmp(".", entry->d_name) == 0 || strcmp("..", entry->d_name) == 0)
         continue;
+
       string pathToNewDirectory(sourceDir);
       pathToNewDirectory.append("/");
       string fileName(entry->d_name);
       pathToNewDirectory.append(fileName);
+      cout << "Found directory:" <<  pathToNewDirectory << endl;
+
 
       string pathToNewDestinationDirectory(destinationDir);
       pathToNewDestinationDirectory.append("/");
       pathToNewDestinationDirectory.append(entry->d_name);
-      sourcePathScannedFilesPath.push_back(pathToNewDestinationDirectory);
+
+      if(sourcePathScannedFilesPath.size() == 0) {
+        sourcePathScannedFilesPath.push_back(pathToNewDirectory);
+      }
+
+      bool flagToAddFile = true;
+      for( auto path : sourcePathScannedFilesPath )
+      {
+        cout << "path=" << path << endl;
+        cout << "pathToNewDirectory=" << pathToNewDirectory << endl;
+
+        if ( path == pathToNewDirectory) {
+          cout << "Dir already added breaking" << endl;
+          flagToAddFile = false;
+          break;
+        }
+      }
+      if(flagToAddFile) {
+        cout << "Adding " <<  pathToNewDirectory << endl;
+        sourcePathScannedFilesPath.push_back(pathToNewDirectory); // add file only once
+      }
+      cout << "In scandirRecursevly after added dir sourcePathScannedFilesPath.size()=" << sourcePathScannedFilesPath.size() << endl;
 
 
       checkDirectory(pathToNewDestinationDirectory.c_str());
@@ -338,7 +395,7 @@ void checkIfDestinationFilesHaveSourceExisting(vector<string> sourceFilePaths, c
 
     if(stat(destinationFilePath, &checkIfExistsBuffer) == -1) {
       cout << "File path not existing in check" << endl;
-      sourceFilePaths.erase(remove(sourceFilePaths.begin(), sourceFilePaths.end(), destinationFilePath), sourceFilePaths.end());
+      destinationFilePaths.erase(remove(destinationFilePaths.begin(), destinationFilePaths.end(), destinationFilePath), destinationFilePaths.end());
       return;
     } else {
       dirPath = opendir(destinationFilePath);
@@ -356,10 +413,17 @@ void checkIfDestinationFilesHaveSourceExisting(vector<string> sourceFilePaths, c
           // }
           // cout << "destinationFilePaths=======================" << endl;
 
+          cout << "destinationFilePaths.size()=" <<  destinationFilePaths.size() << endl;
+
+          //if this is first iteration
+          if (destinationFilePaths.size() == 0) {
+            return;
+          }
           int flagToLeave = 0;
           for (vector<string>::const_iterator iter = destinationFilePaths.begin(); iter != destinationFilePaths.end(); ++iter)
           {
             string tmp(*iter);
+            cout << "tmp=" << tmp << endl;
 
             // cout << "Compering: fullPathToDestinationFile:" << fullPathToDestinationFile << " tmp: " << tmp << endl;
             if(strcmp(fullPathToDestinationFile.c_str(), tmp.c_str()) == 0)
@@ -372,6 +436,7 @@ void checkIfDestinationFilesHaveSourceExisting(vector<string> sourceFilePaths, c
           if(!flagToLeave)
           {
             // cout << "Removing file: " <<  fullPathToDestinationFile << endl;
+            cout << "File beeing removed: " << fullPathToDestinationFile << endl;
              remove(fullPathToDestinationFile.c_str());
           }
 
@@ -400,6 +465,7 @@ void checkIfDestinationFilesHaveSourceExisting(vector<string> sourceFilePaths, c
           if(!flagToLeaveDir)
           {
             //cout << "Removing dir: " <<  fullPathToDestinationDir << endl;
+             cout << "Directory to beeing removed " << fullPathToDestinationDir << endl;
              remove(fullPathToDestinationDir.c_str());
           }
 
@@ -477,7 +543,7 @@ int main(int argc, char ** argv) {
     exit(EXIT_FAILURE);
   }
 
-  // scandirOneLevel(sourceFolder, destinationFolder); //TODO uncoment it works for one level of deepnes if this word exists :D
+  // OneLevel(sourceFolder, destinationFolder); //TODO uncoment it works for one level of deepnes if this word exists :D
 
   // scandirRecursevly(sourceFolder, destinationFolder); //TODO uncoment for recursive function test
   //
@@ -487,6 +553,7 @@ int main(int argc, char ** argv) {
   while(1) {
     scandirRecursevly(sourceFolder, destinationFolder); //TODO uncoment for recursive function test
 
+    cout << "sourcePathScannedFilesPath.size()=" << sourcePathScannedFilesPath.size() << endl;
     checkIfDestinationFilesHaveSourceExisting(sourcePathScannedFilesPath, sourceFolder, destinationFolder); //TODO uncoment to start folder syncronization function
       sleep(30);
     }
