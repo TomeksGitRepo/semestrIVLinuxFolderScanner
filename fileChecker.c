@@ -386,6 +386,13 @@ void checkIfDestinationFilesHaveSourceExisting(vector<string> sourceFilePaths, c
     struct stat statbuffer;
     struct stat checkIfExistsBuffer;
 
+    for(auto item : sourceFilePaths) {
+      if(stat(item.c_str(), &checkIfExistsBuffer) == -1) {
+        cout << "File path not existing in source" << endl;
+        sourcePathScannedFilesPath.erase(remove(sourcePathScannedFilesPath.begin(), sourcePathScannedFilesPath.end(), item), sourcePathScannedFilesPath.end());
+      }
+    }
+
     vector<string> destinationFilePaths = changeFromSourceToDestinationPath(sourceFilePaths, sourceFilePath, destinationFilePath );
     //cout <<  " Pure destinationFilePaths:" << endl;
     // for (vector<string>::const_iterator iter = destinationFilePaths.begin(); iter != destinationFilePaths.end(); ++iter)
@@ -396,6 +403,7 @@ void checkIfDestinationFilesHaveSourceExisting(vector<string> sourceFilePaths, c
     if(stat(destinationFilePath, &checkIfExistsBuffer) == -1) {
       cout << "File path not existing in check" << endl;
       destinationFilePaths.erase(remove(destinationFilePaths.begin(), destinationFilePaths.end(), destinationFilePath), destinationFilePaths.end());
+
       return;
     } else {
       dirPath = opendir(destinationFilePath);
