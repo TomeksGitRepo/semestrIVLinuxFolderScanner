@@ -29,7 +29,7 @@
 
 //Added for signals
 #include <signal.h>
-#include <curses.h> // Need to install apt-get install libncurses5-dev libncursesw5-dev
+//#include <curses.h> // Need to install apt-get install libncurses5-dev libncursesw5-dev
 
 #include <algorithm> // to remove from vector
 
@@ -48,7 +48,7 @@ vector<string> sourcePathScannedFilesPath;
 ////////////////Signal handler ////////////////////////
 static void sigint_handler(int signo) {
   printf("Caught SIGUSR1!\n");
-  exit(EXIT_SUCCESS);
+  syslog(LOG_INFO, "File scanner program awakened");
 }
 
 void scandirOneLevel(const char* sourceDir,const char* destinationDir, int depth = 0) {
@@ -70,12 +70,25 @@ void scandirOneLevel(const char* sourceDir,const char* destinationDir, int depth
       strcat(sourceFilePath, entry->d_name);
       string pathToFileToAdd(sourceFilePath);
 
-      for(vector<string>::const_iterator iter = sourcePathScannedFilesPath.begin(); iter != sourcePathScannedFilesPath.end(); ++iter)
+      if(sourcePathScannedFilesPath.size() == 0) {
+
+        sourcePathScannedFilesPath.push_back(pathToFileToAdd);
+      }
+      cout << "In scandirOneLevel sourcePathScannedFilesPath.size()=" << sourcePathScannedFilesPath.size() << endl;
+
+      bool flagToAddFile = true;
+      for( auto path : sourcePathScannedFilesPath )
       {
-        if ( *iter == pathToFileToAdd) {
+        cout << "path=" << path << endl;
+        cout << "pathToFileToAdd=" << pathToFileToAdd << endl;
+
+        if ( path == pathToFileToAdd) {
           cout << "File already added breaking" << endl;
+          flagToAddFile = false;
           break;
         }
+      }
+      if(flagToAddFile) {
         cout << "Adding " <<  pathToFileToAdd << endl;
         sourcePathScannedFilesPath.push_back(pathToFileToAdd); // add file only once
       }
@@ -90,11 +103,8 @@ void scandirOneLevel(const char* sourceDir,const char* destinationDir, int depth
       strcat(destinationFilePath, entry->d_name);
       //printf("Coping Filename: %*s%s\n", depth, "", entry->d_name);
       checkFile(sourceFilePath, destinationFilePath);
-
-
-      openlog("slog", LOG_PID, LOG_USER);
       syslog(LOG_INFO, "File copied");
-      closelog();
+
       //TODO call funciton to copy to destination if file was modified
       //scandir(entry->d_name, depth+4);
     } else if (S_ISDIR(statbuffer.st_mode)) {
@@ -103,8 +113,30 @@ void scandirOneLevel(const char* sourceDir,const char* destinationDir, int depth
       strcpy(sourceFilePath, sourceDir);
       strcat(sourceFilePath, "/");
       strcat(sourceFilePath, entry->d_name);
-      string pathToFileToAdd(sourceFilePath);
-      sourcePathScannedFilesPath.push_back(pathToFileToAdd);
+      string pathToDirToAdd(sourceFilePath);
+
+      if(sourcePathScannedFilesPath.size() == 0) {
+      sourcePathScannedFilesPath.push_back(pathToDirToAdd);
+    }
+
+    bool flagToAddFile = true;
+    for( auto path : sourcePathScannedFilesPath )
+    {
+      cout << "path=" << path << endl;
+      cout << "pathToDirToAdd=" << pathToDirToAdd << endl;
+
+      if ( path == pathToDirToAdd) {
+        cout << "Dir already added breaking" << endl;
+        flagToAddFile = false;
+        break;
+      }
+    }
+    if(flagToAddFile) {
+      cout << "Adding " <<  pathToDirToAdd << endl;
+      sourcePathScannedFilesPath.push_back(pathToDirToAdd); // add file only once
+    }
+    cout << "In pathToDirToAdd after added dir sourcePathScannedFilesPath.size()=" << sourcePathScannedFilesPath.size() << endl;
+
     }
     // } else if(S_ISDIR(statbuffer.st_mode)) {
     //   printf("DirName: %*s%s\n", depth, "", entry->d_name);
@@ -236,16 +268,12 @@ void checkFile(const char* sourceFilePath, const char* destinationFilePath)
     printf("No file in dest starting coping\n");
     copyFiles(sourceFilePath, destinationFilePath);
     ///////////////////Report coping ///////////////////////////
-    openlog("slog", LOG_PID, LOG_USER);
     syslog(LOG_INFO, "File copied");
-    closelog();
   } else if (sFileBuffer.st_mtime > dFileBuffer.st_mtime) {
     //Copy file if it was modified
     copyFiles(sourceFilePath, destinationFilePath);
     ///////////////////Report coping when source modification is newer///////////////////////////
-    openlog("slog", LOG_PID, LOG_USER);
     syslog(LOG_INFO, "File copied because source was modified");
-    closelog();
   }
 printf("Coping funciton finshed\n\n");
 }
@@ -261,9 +289,7 @@ void checkDirectory(const char* destinationFilePath)
   if(-1 == stat(destinationFilePath, &dFileBuffer) ) {
     mkdir(destinationFilePath, 0777);
     ///////////////////Report making of new directory///////////////////////////
-    openlog("slog", LOG_PID, LOG_USER);
     syslog(LOG_INFO, "New directory created");
-    closelog();
   }
 
 printf("Making directory finished\n\n");
@@ -284,9 +310,7 @@ int copyFiles(const char *source, const char *destination)
   if( (in_fd=open(source, O_RDONLY)) == -1 )
   {
     ///////////////////Report error on opening source directory///////////////////////////
-    openlog("slog", LOG_PID, LOG_USER);
     syslog(LOG_ERR, "Error opening source file");
-    closelog();
     printf("Cannot open %s", source);
   }
 
@@ -294,9 +318,7 @@ int copyFiles(const char *source, const char *destination)
   if( (out_fd=creat(destination, COPYMORE)) == -1 )
   {
     ///////////////////Report error///////////////////////////
-    openlog("slog", LOG_PID, LOG_USER);
     syslog(LOG_ERR, "Error on creation of destination");
-    closelog();
     printf("Cannot creat %s ", destination);
   }
 
@@ -307,9 +329,7 @@ int copyFiles(const char *source, const char *destination)
     if( write(out_fd, buf, n_chars) != n_chars )
     {
       ///////////////////Report error ///////////////////////////
-      openlog("slog", LOG_PID, LOG_USER);
       syslog(LOG_ERR, "Write error on destination");
-      closelog();
       printf("Write error to %s", destination);
     }
 
@@ -317,9 +337,7 @@ int copyFiles(const char *source, const char *destination)
     if( n_chars == -1 )
     {
       ///////////////////Report error ///////////////////////////
-      openlog("slog", LOG_PID, LOG_USER);
       syslog(LOG_ERR, "Read error on source");
-      closelog();
       printf("Read error from %s", source);
     }
   }
@@ -329,9 +347,7 @@ int copyFiles(const char *source, const char *destination)
     if( close(in_fd) == -1 || close(out_fd) == -1 )
     {
       ///////////////////Report error ///////////////////////////
-      openlog("slog", LOG_PID, LOG_USER);
       syslog(LOG_ERR, "Read error on close of destintation file");
-      closelog();
       printf("Error closing files");
     }
 
@@ -394,6 +410,7 @@ void checkIfDestinationFilesHaveSourceExisting(vector<string> sourceFilePaths, c
     }
 
     vector<string> destinationFilePaths = changeFromSourceToDestinationPath(sourceFilePaths, sourceFilePath, destinationFilePath );
+    //TODO just for debugging destinationFilePaths
     //cout <<  " Pure destinationFilePaths:" << endl;
     // for (vector<string>::const_iterator iter = destinationFilePaths.begin(); iter != destinationFilePaths.end(); ++iter)
     // {
@@ -445,6 +462,9 @@ void checkIfDestinationFilesHaveSourceExisting(vector<string> sourceFilePaths, c
           {
             // cout << "Removing file: " <<  fullPathToDestinationFile << endl;
             cout << "File beeing removed: " << fullPathToDestinationFile << endl;
+
+            syslog(LOG_INFO, "File removed.");
+
              remove(fullPathToDestinationFile.c_str());
           }
 
@@ -475,6 +495,7 @@ void checkIfDestinationFilesHaveSourceExisting(vector<string> sourceFilePaths, c
             //cout << "Removing dir: " <<  fullPathToDestinationDir << endl;
              cout << "Directory to beeing removed " << fullPathToDestinationDir << endl;
              remove(fullPathToDestinationDir.c_str());
+             syslog(LOG_INFO, "Directory removed.");
           }
 
           checkIfDestinationFilesHaveSourceExisting(destinationFilePaths, sourceFilePath, fullPathToDestinationDir.c_str());
@@ -492,7 +513,7 @@ void checkIfDestinationFilesHaveSourceExisting(vector<string> sourceFilePaths, c
 
 
 int main(int argc, char ** argv) {
-
+  openlog("slog", LOG_PID, LOG_USER);
   /////////////////Register signal handler ////////////////////////////
   if(signal(SIGUSR1, sigint_handler) == SIG_ERR) {
     fprintf(stderr, "Cannot handle SIGUSR1!\n");
@@ -500,9 +521,9 @@ int main(int argc, char ** argv) {
   }
 
   ////////////////Logging start of program ///////////////////////////
-  openlog("slog", LOG_PID, LOG_USER);
+
   syslog(LOG_INFO, "Scanner program started");
-  closelog();
+
 
   ///////////////////////////Start parsing arguments ////////////////////
   size_t i;
@@ -524,6 +545,7 @@ int main(int argc, char ** argv) {
   }
 
   char rFlag[] = "-R";
+  int userDefinedSleepTime = 30;
   for(i = 0; i < argc; i++) {
     char const *option = argv[i];
     if(i == 1) {
@@ -539,7 +561,18 @@ int main(int argc, char ** argv) {
         recursiveFlag = 1;
       }
 
+    } else if ( i == 4 ) {
+      try {
+        userDefinedSleepTime = stoi(option);
+      } catch( const invalid_argument& ia ) {
+          cerr << "Invalid 4th argument, need to be time in seconds " << endl;
+          exit(EXIT_FAILURE);
+      }
+      if( userDefinedSleepTime ) {
+        printf("Additional flag activated time set to %s\n", option);
+      }
     }
+
   }
 
 //Check if args folders exits
@@ -558,14 +591,14 @@ int main(int argc, char ** argv) {
   // checkIfDestinationFilesHaveSourceExisting(sourcePathScannedFilesPath, sourceFolder, destinationFolder); //TODO uncoment to start folder syncronization function
 
 //TODO uncoment to debug function in infinate loop
-  while(1) {
-    scandirRecursevly(sourceFolder, destinationFolder); //TODO uncoment for recursive function test
-
-    cout << "sourcePathScannedFilesPath.size()=" << sourcePathScannedFilesPath.size() << endl;
-    checkIfDestinationFilesHaveSourceExisting(sourcePathScannedFilesPath, sourceFolder, destinationFolder); //TODO uncoment to start folder syncronization function
-      sleep(30);
-    }
-}
+//   while(1) {
+//     scandirOneLevel(sourceFolder, destinationFolder); //TODO uncoment for recursive function test
+//
+//     cout << "sourcePathScannedFilesPath.size()=" << sourcePathScannedFilesPath.size() << endl;
+//     checkIfDestinationFilesHaveSourceExisting(sourcePathScannedFilesPath, sourceFolder, destinationFolder); //TODO uncoment to start folder syncronization function
+//       sleep(userDefinedSleepTime);
+//     }
+// }
 
   // //TODO just to test function to change vector
   //
@@ -594,53 +627,54 @@ int main(int argc, char ** argv) {
   //////////////////////////END parsing arguments //////////////////////////
 
   //TODO uncoment for deamon to start
-//   //our process ID and Session ID
-//   pid_t pid, sid;
-//
-//   //Fork off the parent process
-//   pid = fork();
-//   if(pid < 0) {
-//     exit(EXIT_FAILURE);
-//   }
-//   //if we got a good PID, then we can exit the parent process
-//   if (pid > 0) {
-//     exit(EXIT_SUCCESS);
-//   }
-//
-//   //Change the file mode mask
-//   umask(0);
-//
-//   //Open any logs here
-//
-//   //Create a new SID for the child process
-//   sid = setsid();
-//   if (sid < 0) {
-//       //log any failure
-//       exit(EXIT_FAILURE);
-//   }
-//
-//
-//   //Close out the standard file descriptor
-//   // close(STDIN_FILENO);
-//   // close(STDOUT_FILENO);
-//   // close(STDERR_FILENO);
-//
-//   //initialization finished
-//
-//   //Specific initialization goes here
-//
-//   //The BIG LOOP
-//
-//   while(1) {
-//     //Do some task here
-//     if (!recursiveFlag) {
-//       scandirOneLevel(sourceFolder, destinationFolder);
-//       checkIfDestinationFilesHaveSourceExisting(sourcePathScannedFilesPath, sourceFolder, destinationFolder);
-//     } else {
-//       scandirRecursevly(sourceFolder, destinationFolder);
-//       checkIfDestinationFilesHaveSourceExisting(sourcePathScannedFilesPath, sourceFolder, destinationFolder);
-//     }
-//     sleep(30);
-//   }
-//   exit(EXIT_SUCCESS);
-// }
+  //our process ID and Session ID
+  pid_t pid, sid;
+
+  //Fork off the parent process
+  pid = fork();
+  if(pid < 0) {
+    exit(EXIT_FAILURE);
+  }
+  //if we got a good PID, then we can exit the parent process
+  if (pid > 0) {
+    exit(EXIT_SUCCESS);
+  }
+
+  //Change the file mode mask
+  umask(0);
+
+  //Open any logs here
+
+  //Create a new SID for the child process
+  sid = setsid();
+  if (sid < 0) {
+      //log any failure
+      exit(EXIT_FAILURE);
+  }
+
+
+ // Close out the standard file descriptor
+  close(STDIN_FILENO);
+  close(STDOUT_FILENO);
+  close(STDERR_FILENO);
+
+  //initialization finished
+
+  //Specific initialization goes here
+
+  //The BIG LOOP
+
+  while(1) {
+    //Do some task here
+    if (!recursiveFlag) {
+      scandirOneLevel(sourceFolder, destinationFolder);
+      checkIfDestinationFilesHaveSourceExisting(sourcePathScannedFilesPath, sourceFolder, destinationFolder);
+    } else {
+      scandirRecursevly(sourceFolder, destinationFolder);
+      checkIfDestinationFilesHaveSourceExisting(sourcePathScannedFilesPath, sourceFolder, destinationFolder);
+    }
+    sleep(userDefinedSleepTime);
+  }
+  closelog();
+  exit(EXIT_SUCCESS);
+}
